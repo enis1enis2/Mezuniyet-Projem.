@@ -1,0 +1,15 @@
+# Python / virtualenv
+.venv/
+__pycache__/
+*.pyc
+
+# Environment / secrets
+.env
+
+# Runtime artifacts
+data/
+models/*.gguf
+
+# Large vendored / unrelated folders (keep in workspace, ignore in VCS)
+llama.cpp/
+Python-Kodland-Repo/

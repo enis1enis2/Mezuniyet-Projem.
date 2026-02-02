@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Analysis{% endblock %}
+
+{% block content %}
+<div class="card wide">
+    <h2>Entry Analysis</h2>
+
+    <p><strong>Diary Entry:</strong></p>
+    <p>{{ entry["content"] }}</p>
+
+    <p><strong>Mood:</strong> {{ result["mood"] }}</p>
+    <p><strong>Summary:</strong> {{ result["summary"] }}</p>
+
+    <a href="/">← Back</a>
+</div>
+{% endblock %}

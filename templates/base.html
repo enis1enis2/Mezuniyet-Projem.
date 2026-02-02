@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Diary{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        {% if session.username %}
+        <div class="welcome">Welcome, {{ session.username }}!</div>
+        <a class="logout" href="{{ url_for('auth.logout') }}">Logout</a>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

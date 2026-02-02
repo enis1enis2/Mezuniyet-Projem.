@@ -1,0 +1,147 @@
+/* ---------- BODY ---------- */
+body {
+    background: #f4f6f8;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ---------- CARD ---------- */
+.card {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,.1);
+}
+
+.card.wide {
+    max-width: 700px;
+}
+
+/* ---------- HEADINGS ---------- */
+h2 {
+    margin-top: 0;
+    text-align: center;
+}
+
+/* ---------- INPUTS ---------- */
+input, textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+button {
+    width: 100%;
+    padding: 8px;
+    background: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #1976d2;
+}
+
+/* ---------- LINKS ---------- */
+a {
+    text-decoration: none;
+}
+
+a.btn {
+    display: inline-block;
+    background: #2196f3;
+    padding: 8px 12px;
+    border-radius: 5px;
+    color: white;
+    margin-bottom: 10px;
+}
+
+a.btn:hover {
+    background: #1976d2;
+}
+
+.logout {
+    display: block;
+    text-align: center;
+    margin-top: 15px;
+    color: #f44336;
+}
+
+.muted {
+    text-align: center;
+    color: #777;
+}
+
+/* ---------- ENTRY LIST ---------- */
+.entry-list {
+    list-style: none;
+    padding: 0;
+}
+
+.entry-list li {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.entry-list li span {
+    flex: 1;
+}
+
+.entry-actions a {
+    margin-left: 8px;
+    font-size: 0.9em;
+}
+
+.entry-actions a.delete {
+    color: #f44336;
+}
+
+.entry-actions a.delete:hover {
+    text-decoration: underline;
+}
+
+/* ---------- WELCOME MESSAGE ---------- */
+.welcome {
+    text-align: center;
+    margin: 10px 0;
+    font-weight: bold;
+}
+
+/* ---------- FLASH MESSAGES ---------- */
+.flash {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0;
+    color: #d32f2f;
+    text-align: center;
+}
+.entry-actions a {
+    margin-left: 8px;
+    font-size: 0.9em;
+}
+
+.entry-actions a.delete {
+    color: #f44336;
+}
+
+.entry-actions a.delete:hover,
+.entry-actions a:hover {
+    text-decoration: underline;
+}

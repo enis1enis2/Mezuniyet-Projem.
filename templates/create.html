@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}New Entry{% endblock %}
+
+{% block content %}
+<div class="card wide">
+    <h2>New Entry</h2>
+
+    <form method="post">
+        <textarea name="text" rows="8" placeholder="Write here..." required></textarea>
+        <button type="submit">Save</button>
+    </form>
+
+    <a href="{{ url_for('diary.index') }}">← Back</a>
+</div>
+{% endblock %}

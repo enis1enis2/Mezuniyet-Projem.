@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Your Diary Entries</h1>
+<a class="btn" href="{{ url_for('diary.create') }}">Create New Entry</a>
+<ul class="entry-list">
+    {% for e in entries %}
+    <li>
+        <span>{{ e["content"][:60] }}{% if e["content"]|length > 60 %}...{% endif %}</span>
+        <div class="entry-actions">
+            <a href="{{ url_for('diary.edit', entry_id=e['id']) }}">Edit</a> |
+            <a href="{{ url_for('diary.delete', entry_id=e['id']) }}" class="delete">Delete</a> |
+            <a href="{{ url_for('diary.analyze', entry_id=e['id']) }}">Analyze Mood</a>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}
