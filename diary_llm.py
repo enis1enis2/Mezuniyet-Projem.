@@ -54,6 +54,74 @@ def _parse_mood_summary(output: str) -> dict:
                 result["summary"] = line.split(":", 1)[1].strip()
         return result
 
+
+def _simple_sentiment_analysis(text: str) -> dict:
+    lowered = text.lower()
+    positive_keywords = {
+        "happy",
+        "joy",
+        "grateful",
+        "excited",
+        "proud",
+        "love",
+        "relieved",
+        "calm",
+        "peaceful",
+        "good",
+        "great",
+        "fantastic",
+        "wonderful",
+        "hopeful",
+        "content",
+        "smile",
+        "delighted",
+    }
+    negative_keywords = {
+        "sad",
+        "angry",
+        "upset",
+        "anxious",
+        "worried",
+        "stressed",
+        "stress",
+        "tired",
+        "frustrated",
+        "lonely",
+        "bad",
+        "terrible",
+        "awful",
+        "depressed",
+        "hurt",
+        "fear",
+        "scared",
+        "overwhelmed",
+    }
+
+    positive_hits = sum(1 for keyword in positive_keywords if keyword in lowered)
+    negative_hits = sum(1 for keyword in negative_keywords if keyword in lowered)
+
+    if positive_hits > negative_hits:
+        mood = "Positive"
+    elif negative_hits > positive_hits:
+        mood = "Negative"
+    else:
+        mood = "Neutral"
+
+    summary_source = text.strip().replace("\n", " ")
+    if not summary_source:
+        summary = "No content provided."
+    else:
+        sentence_endings = [summary_source.find(token) for token in (". ", "! ", "? ") if token in summary_source]
+        if sentence_endings:
+            end_index = min(sentence_endings) + 1
+            summary = summary_source[:end_index].strip()
+        else:
+            summary = summary_source[:200].strip()
+        if summary and summary[-1] not in ".!?":
+            summary = f"{summary}..."
+
+    return {"mood": mood, "summary": summary}
+
 def get_model():
     global _model
     if _model is not None:
@@ -109,11 +177,11 @@ def analyze_mood_and_summary(text: str) -> dict:
         if sixfinger_result is not None:
             return sixfinger_result
         if LLM_PROVIDER == "sixfinger":
-            return {"mood": "Unknown", "summary": "AI analysis unavailable (Sixfinger not configured/installed)."}
+            return _simple_sentiment_analysis(text)
 
     llm = get_model()
     if llm is None:
-        return {"mood": "Unknown", "summary": "AI analysis unavailable (model not configured/installed)."}
+        return _simple_sentiment_analysis(text)
 
     prompt = _build_analysis_prompt(text)
 
@@ -124,6 +192,6 @@ def analyze_mood_and_summary(text: str) -> dict:
         else:
             output = str(response).strip()
     except Exception:
-        return {"mood": "Unknown", "summary": "AI analysis unavailable due to local model issues."}
+        return _simple_sentiment_analysis(text)
 
     return _parse_mood_summary(output)
