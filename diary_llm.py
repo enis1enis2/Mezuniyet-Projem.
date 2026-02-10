@@ -33,6 +33,27 @@ TEMPERATURE = _get_float_env("LLM_TEMPERATURE", 0.7)
 
 _model: Optional[object] = None
 
+def _build_analysis_prompt(text: str) -> str:
+    return (
+        "Analyze the mood of the following diary entry and summarize it in 1–2 sentences.\n"
+        'Return ONLY valid JSON with exactly these keys: {"mood": "<mood>", "summary": "<summary>"}\n\n'
+        "Diary entry:\n"
+        f"{text}\n"
+    )
+
+def _parse_mood_summary(output: str) -> dict:
+    try:
+        parsed = json.loads(output)
+        return {"mood": parsed.get("mood", "Unknown"), "summary": parsed.get("summary", output)}
+    except json.JSONDecodeError:
+        result = {"mood": "Unknown", "summary": output}
+        for line in output.splitlines():
+            if line.lower().startswith("mood:"):
+                result["mood"] = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("summary:"):
+                result["summary"] = line.split(":", 1)[1].strip()
+        return result
+
 def get_model():
     global _model
     if _model is not None:
@@ -60,12 +81,7 @@ def _analyze_with_sixfinger(text: str) -> Optional[dict]:
     except Exception:
         return None
 
-    prompt = (
-        "Analyze the mood of the following diary entry and summarize it in 1–2 sentences.\n"
-        'Return ONLY valid JSON with exactly these keys: {"mood": "<mood>", "summary": "<summary>"}\n\n'
-        "Diary entry:\n"
-        f"{text}\n"
-    )
+    prompt = _build_analysis_prompt(text)
 
     try:
         client = API(api_key=SIXFINGER_API_KEY)
@@ -81,18 +97,7 @@ def _analyze_with_sixfinger(text: str) -> Optional[dict]:
     except Exception:
         return None
 
-    # Prefer strict JSON; fall back to loose parsing like local model path
-    try:
-        parsed = json.loads(output)
-        return {"mood": parsed.get("mood", "Unknown"), "summary": parsed.get("summary", output)}
-    except json.JSONDecodeError:
-        result = {"mood": "Unknown", "summary": output}
-        for line in output.splitlines():
-            if line.lower().startswith("mood:"):
-                result["mood"] = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("summary:"):
-                result["summary"] = line.split(":", 1)[1].strip()
-        return result
+    return _parse_mood_summary(output)
 
 def analyze_mood_and_summary(text: str) -> dict:
     """
@@ -110,12 +115,7 @@ def analyze_mood_and_summary(text: str) -> dict:
     if llm is None:
         return {"mood": "Unknown", "summary": "AI analysis unavailable (model not configured/installed)."}
 
-    prompt = (
-        "Analyze the mood of the following diary entry and summarize it in 1–2 sentences.\n"
-        'Return ONLY valid JSON with exactly these keys: {"mood": "<mood>", "summary": "<summary>"}\n\n'
-        "Diary entry:\n"
-        f"{text}\n"
-    )
+    prompt = _build_analysis_prompt(text)
 
     try:
         response = llm(prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE, stream=False)
@@ -126,15 +126,4 @@ def analyze_mood_and_summary(text: str) -> dict:
     except Exception:
         return {"mood": "Unknown", "summary": "AI analysis unavailable due to local model issues."}
 
-    try:
-        parsed = json.loads(output)
-        result = {"mood": parsed.get("mood", "Unknown"), "summary": parsed.get("summary", output)}
-    except json.JSONDecodeError:
-        result = {"mood": "Unknown", "summary": output}
-        # Attempt parsing lines if model returns structured output
-        for line in output.splitlines():
-            if line.lower().startswith("mood:"):
-                result["mood"] = line.split(":",1)[1].strip()
-            elif line.lower().startswith("summary:"):
-                result["summary"] = line.split(":",1)[1].strip()
-    return result
+    return _parse_mood_summary(output)

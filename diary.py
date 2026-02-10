@@ -6,7 +6,6 @@ diary = Blueprint("diary", __name__)
 
 def login_required(f):
     from functools import wraps
-    from flask import redirect
     @wraps(f)
     def decorated(*args, **kwargs):
         if "user_id" not in session:

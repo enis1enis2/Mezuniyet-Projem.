@@ -3,4 +3,3 @@ werkzeug
 llama-cpp-python
 python-dotenv
 sixfinger
-dotenv
