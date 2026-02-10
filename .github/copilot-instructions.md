@@ -6,7 +6,7 @@ Mezüniyet is a **Flask + SQLite** diary web app with:
 - **Diary CRUD** (create/edit/delete/list) stored in SQLite (`data/diary.db`)
 - **Optional AI analysis** (mood + summary):
   - Local GGUF via `llama-cpp-python`
-  - Sixfinger cloud API when configured (see `.env.example`)
+  - External OpenAI-compatible API when configured (see `.env.example`)
 
 The primary entrypoint is `app.py`.
 
@@ -52,7 +52,7 @@ The primary entrypoint is `app.py`.
 ## Known “gotchas” to keep in mind while editing
 - **The app uses sessions directly** (no `flask_login` usage).
 - **Secrets**: `SECRET_KEY` should come from the environment (see `.env.example`). Avoid committing real secrets.
-- **LLM is optional**: if neither Sixfinger nor the local model is available, analysis returns a safe fallback message.
+- **LLM is optional**: if neither the external API nor the local model is available, analysis returns a safe fallback message.
 - **Prefer `url_for()`** in Python and Jinja templates (avoid hard-coded paths).
 
 ## Safe workflows / suggestions for changes

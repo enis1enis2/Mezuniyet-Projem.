@@ -1,13 +1,16 @@
 import json
 import os
+import urllib.error
+import urllib.request
 from typing import Optional
 
 DEFAULT_MODEL_PATH = os.path.join("models", "koala-7B-HF.Q3_K_L.gguf")
 model_path = os.environ.get("LLM_MODEL_PATH") or DEFAULT_MODEL_PATH
-LLM_PROVIDER = (os.environ.get("LLM_PROVIDER") or "auto").lower()  # auto | local | sixfinger
+LLM_PROVIDER = (os.environ.get("LLM_PROVIDER") or "auto").lower()  # auto | local | external
 
-SIXFINGER_API_KEY = os.environ.get("SIXFINGER_API_KEY")
-SIXFINGER_MODEL = os.environ.get("SIXFINGER_MODEL")  # optional, provider default if empty
+EXTERNAL_API_KEY = os.environ.get("EXTERNAL_API_KEY")
+EXTERNAL_API_URL = os.environ.get("EXTERNAL_API_URL")
+EXTERNAL_API_MODEL = os.environ.get("EXTERNAL_API_MODEL")
 
 def _get_int_env(name: str, default: int) -> int:
     value = os.environ.get(name)
@@ -141,42 +144,69 @@ def get_model():
     except Exception:
         return None
 
-def _analyze_with_sixfinger(text: str) -> Optional[dict]:
-    if not SIXFINGER_API_KEY:
-        return None
-    try:
-        from sixfinger import API  # type: ignore
-    except Exception:
+def _analyze_with_external_api(text: str) -> Optional[dict]:
+    if not EXTERNAL_API_KEY or not EXTERNAL_API_URL:
         return None
 
     prompt = _build_analysis_prompt(text)
+    payload = {
+        "model": EXTERNAL_API_MODEL or "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Respond only with JSON containing mood and summary.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": MAX_TOKENS,
+        "temperature": TEMPERATURE,
+    }
+
+    request = urllib.request.Request(
+        EXTERNAL_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {EXTERNAL_API_KEY}",
+        },
+    )
 
     try:
-        client = API(api_key=SIXFINGER_API_KEY)
-        if SIXFINGER_MODEL:
-            response = client.chat(prompt, model=SIXFINGER_MODEL)
-        else:
-            response = client.chat(prompt)
-
-        output = getattr(response, "content", None)
-        if not output:
-            output = str(response)
-        output = str(output).strip()
-    except Exception:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response_body = response.read().decode("utf-8")
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
         return None
 
-    return _parse_mood_summary(output)
+    try:
+        data = json.loads(response_body)
+    except json.JSONDecodeError:
+        return None
+
+    content = None
+    if isinstance(data, dict):
+        choices = data.get("choices", [])
+        if choices:
+            first_choice = choices[0] or {}
+            message = first_choice.get("message") or {}
+            content = message.get("content")
+            if not content:
+                content = first_choice.get("text")
+
+    if not content:
+        return None
+
+    return _parse_mood_summary(str(content).strip())
 
 def analyze_mood_and_summary(text: str) -> dict:
     """
-    Uses local Koala 7B model to analyze diary entry mood and create a short summary.
+    Uses external API or local Koala 7B model to analyze diary entry mood and create a short summary.
     Returns {"mood": "...", "summary": "..."}
     """
-    if LLM_PROVIDER in ("auto", "sixfinger"):
-        sixfinger_result = _analyze_with_sixfinger(text)
-        if sixfinger_result is not None:
-            return sixfinger_result
-        if LLM_PROVIDER == "sixfinger":
+    if LLM_PROVIDER in ("auto", "external"):
+        external_result = _analyze_with_external_api(text)
+        if external_result is not None:
+            return external_result
+        if LLM_PROVIDER == "external":
             return _simple_sentiment_analysis(text)
 
     llm = get_model()
