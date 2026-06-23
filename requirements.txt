@@ -2,4 +2,3 @@ flask
 werkzeug
 llama-cpp-python
 python-dotenv
-sixfinger

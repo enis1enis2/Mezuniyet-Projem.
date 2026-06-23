@@ -1,13 +1,16 @@
 import json
 import os
+import urllib.error
+import urllib.request
 from typing import Optional
 
 DEFAULT_MODEL_PATH = os.path.join("models", "koala-7B-HF.Q3_K_L.gguf")
 model_path = os.environ.get("LLM_MODEL_PATH") or DEFAULT_MODEL_PATH
-LLM_PROVIDER = (os.environ.get("LLM_PROVIDER") or "auto").lower()  # auto | local | sixfinger
+LLM_PROVIDER = (os.environ.get("LLM_PROVIDER") or "auto").lower()  # auto | local | external
 
-SIXFINGER_API_KEY = os.environ.get("SIXFINGER_API_KEY")
-SIXFINGER_MODEL = os.environ.get("SIXFINGER_MODEL")  # optional, provider default if empty
+EXTERNAL_API_KEY = os.environ.get("EXTERNAL_API_KEY")
+EXTERNAL_API_URL = os.environ.get("EXTERNAL_API_URL")
+EXTERNAL_API_MODEL = os.environ.get("EXTERNAL_API_MODEL")
 
 def _get_int_env(name: str, default: int) -> int:
     value = os.environ.get(name)
@@ -54,6 +57,74 @@ def _parse_mood_summary(output: str) -> dict:
                 result["summary"] = line.split(":", 1)[1].strip()
         return result
 
+
+def _simple_sentiment_analysis(text: str) -> dict:
+    lowered = text.lower()
+    positive_keywords = {
+        "happy",
+        "joy",
+        "grateful",
+        "excited",
+        "proud",
+        "love",
+        "relieved",
+        "calm",
+        "peaceful",
+        "good",
+        "great",
+        "fantastic",
+        "wonderful",
+        "hopeful",
+        "content",
+        "smile",
+        "delighted",
+    }
+    negative_keywords = {
+        "sad",
+        "angry",
+        "upset",
+        "anxious",
+        "worried",
+        "stressed",
+        "stress",
+        "tired",
+        "frustrated",
+        "lonely",
+        "bad",
+        "terrible",
+        "awful",
+        "depressed",
+        "hurt",
+        "fear",
+        "scared",
+        "overwhelmed",
+    }
+
+    positive_hits = sum(1 for keyword in positive_keywords if keyword in lowered)
+    negative_hits = sum(1 for keyword in negative_keywords if keyword in lowered)
+
+    if positive_hits > negative_hits:
+        mood = "Positive"
+    elif negative_hits > positive_hits:
+        mood = "Negative"
+    else:
+        mood = "Neutral"
+
+    summary_source = text.strip().replace("\n", " ")
+    if not summary_source:
+        summary = "No content provided."
+    else:
+        sentence_endings = [summary_source.find(token) for token in (". ", "! ", "? ") if token in summary_source]
+        if sentence_endings:
+            end_index = min(sentence_endings) + 1
+            summary = summary_source[:end_index].strip()
+        else:
+            summary = summary_source[:200].strip()
+        if summary and summary[-1] not in ".!?":
+            summary = f"{summary}..."
+
+    return {"mood": mood, "summary": summary}
+
 def get_model():
     global _model
     if _model is not None:
@@ -73,47 +144,74 @@ def get_model():
     except Exception:
         return None
 
-def _analyze_with_sixfinger(text: str) -> Optional[dict]:
-    if not SIXFINGER_API_KEY:
-        return None
-    try:
-        from sixfinger import API  # type: ignore
-    except Exception:
+def _analyze_with_external_api(text: str) -> Optional[dict]:
+    if not EXTERNAL_API_KEY or not EXTERNAL_API_URL:
         return None
 
     prompt = _build_analysis_prompt(text)
+    payload = {
+        "model": EXTERNAL_API_MODEL or "gpt-4o-mini",
+        "messages": [
+            {
+                "role": "system",
+                "content": "Respond only with JSON containing mood and summary.",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": MAX_TOKENS,
+        "temperature": TEMPERATURE,
+    }
+
+    request = urllib.request.Request(
+        EXTERNAL_API_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {EXTERNAL_API_KEY}",
+        },
+    )
 
     try:
-        client = API(api_key=SIXFINGER_API_KEY)
-        if SIXFINGER_MODEL:
-            response = client.chat(prompt, model=SIXFINGER_MODEL)
-        else:
-            response = client.chat(prompt)
-
-        output = getattr(response, "content", None)
-        if not output:
-            output = str(response)
-        output = str(output).strip()
-    except Exception:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response_body = response.read().decode("utf-8")
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError):
         return None
 
-    return _parse_mood_summary(output)
+    try:
+        data = json.loads(response_body)
+    except json.JSONDecodeError:
+        return None
+
+    content = None
+    if isinstance(data, dict):
+        choices = data.get("choices", [])
+        if choices:
+            first_choice = choices[0] or {}
+            message = first_choice.get("message") or {}
+            content = message.get("content")
+            if not content:
+                content = first_choice.get("text")
+
+    if not content:
+        return None
+
+    return _parse_mood_summary(str(content).strip())
 
 def analyze_mood_and_summary(text: str) -> dict:
     """
-    Uses local Koala 7B model to analyze diary entry mood and create a short summary.
+    Uses external API or local Koala 7B model to analyze diary entry mood and create a short summary.
     Returns {"mood": "...", "summary": "..."}
     """
-    if LLM_PROVIDER in ("auto", "sixfinger"):
-        sixfinger_result = _analyze_with_sixfinger(text)
-        if sixfinger_result is not None:
-            return sixfinger_result
-        if LLM_PROVIDER == "sixfinger":
-            return {"mood": "Unknown", "summary": "AI analysis unavailable (Sixfinger not configured/installed)."}
+    if LLM_PROVIDER in ("auto", "external"):
+        external_result = _analyze_with_external_api(text)
+        if external_result is not None:
+            return external_result
+        if LLM_PROVIDER == "external":
+            return _simple_sentiment_analysis(text)
 
     llm = get_model()
     if llm is None:
-        return {"mood": "Unknown", "summary": "AI analysis unavailable (model not configured/installed)."}
+        return _simple_sentiment_analysis(text)
 
     prompt = _build_analysis_prompt(text)
 
@@ -124,6 +222,6 @@ def analyze_mood_and_summary(text: str) -> dict:
         else:
             output = str(response).strip()
     except Exception:
-        return {"mood": "Unknown", "summary": "AI analysis unavailable due to local model issues."}
+        return _simple_sentiment_analysis(text)
 
     return _parse_mood_summary(output)

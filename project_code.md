@@ -9,7 +9,7 @@ It intentionally **does not** embed full source code dumps.
 - **Session-based auth** (no `flask_login` usage in code, despite being in `requirements.txt`)
 - **Optional AI analysis** (mood + summary):
   - **Local**: `llama-cpp-python` reading a **GGUF** model from `models/`
-  - **Cloud**: [Sixfinger API](https://github.com/sixfingerdev/-Sixfinger-API---10-20x-Faster-AI-Chat-API) when configured via `.env`
+  - **Cloud**: OpenAI-compatible API when configured via `.env`
 
 ## Quickstart (local dev)
 1. Install dependencies:
@@ -76,7 +76,7 @@ Mezüniyet/
 - **`diary_llm.py`**
   - Implements `analyze_mood_and_summary(text: str) -> dict`
   - Supports two backends:
-    - **Sixfinger (cloud)** if `SIXFINGER_API_KEY` is set (or `LLM_PROVIDER=sixfinger`)
+    - **External (cloud)** if `EXTERNAL_API_KEY` + `EXTERNAL_API_URL` are set (or `LLM_PROVIDER=external`)
     - **Local GGUF** via `llama_cpp.Llama` (default path: `models/koala-7B-HF.Q3_K_L.gguf`)
   - Returns a dict with keys `mood` and `summary`, with safe fallbacks on errors
 
@@ -90,5 +90,5 @@ Mezüniyet/
 
 ## Notes / current inconsistencies to be aware of
 - The app uses **plain Flask sessions** (no `flask_login` import).
-- `diary_llm.py` can use **Sixfinger** or **local `llama_cpp`**; if neither is configured, analysis returns a safe fallback.
+- `diary_llm.py` can use an **external API** or **local `llama_cpp`**; if neither is configured, analysis returns a safe fallback.
 - `SECRET_KEY` should be set via environment (see `.env.example`).
